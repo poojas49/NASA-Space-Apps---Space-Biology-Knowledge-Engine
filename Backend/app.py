@@ -1,47 +1,65 @@
 import streamlit as st
 import pandas as pd
 import requests
+import json
+import sys
 from component import (
     show_experiment_overview,
     show_volcano_plot,
     show_pca_plot,
-
 )
 
 
 # ---------------------------------------------------------
-# 🌍 STEP 1: Load Experiment Metadata (Replace this for new datasets)
+# 🌍 STEP 1: Load Experiment Metadata Dynamically
 # ---------------------------------------------------------
-experiment_info = {
-    "osd_id": "OSD-3",
-    "glds_id": "GLDS-3",
-    "matched_paper": {
-        "title": "Innate immune responses of Drosophila melanogaster are altered by spaceflight.",
-        "link": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7000411/",
-    },
-    "metadata": {
-        "organism": "Drosophila melanogaster",
-        "tissue": "Whole Organism",
-        "assay_type": "DNA microarray",
-        "mission": "STS-121",
-        "description": (
-            "Gene expression levels were determined in 3rd instar and adult Drosophila melanogaster "
-            "reared during spaceflight to elucidate the molecular mechanisms underpinning immune "
-            "response alterations under microgravity."
-        ),
-        "categories": ["Immune System & Inflammation", "Genomics & Epigenetics"],
-    },
-    "visualizations": {
-        "files_url": "https://visualization.osdr.nasa.gov/biodata/api/v2/dataset/OSD-3/files/"
-    },
-}
+def get_experiment_info():
+    """Get experiment info from query params or use default"""
+    # Check if experiment info is passed via query params
+    query_params = st.query_params
+    
+    if 'experiment_data' in query_params:
+        try:
+            # Decode the experiment data from URL parameter
+            experiment_data = json.loads(query_params['experiment_data'])
+            return experiment_data
+        except Exception as e:
+            st.error(f"Error parsing experiment data: {e}")
+    
+    # Default experiment info (fallback)
+    return {
+        "osd_id": "OSD-3",
+        "glds_id": "GLDS-3",
+        "matched_paper": {
+            "title": "Innate immune responses of Drosophila melanogaster are altered by spaceflight.",
+            "link": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7000411/",
+        },
+        "metadata": {
+            "organism": "Drosophila melanogaster",
+            "tissue": "Whole Organism",
+            "assay_type": "DNA microarray",
+            "mission": "STS-121",
+            "description": (
+                "Gene expression levels were determined in 3rd instar and adult Drosophila melanogaster "
+                "reared during spaceflight to elucidate the molecular mechanisms underpinning immune "
+                "response alterations under microgravity."
+            ),
+            "categories": ["Immune System & Inflammation", "Genomics & Epigenetics"],
+        },
+        "visualizations": {
+            "files_url": "https://visualization.osdr.nasa.gov/biodata/api/v2/dataset/OSD-3/files/"
+        },
+    }
+
+# Get experiment info dynamically
+experiment_info = get_experiment_info()
 
 
 # ---------------------------------------------------------
 # 🧠 STEP 2: Helper to load CSVs automatically
 # ---------------------------------------------------------
 @st.cache_data
-def auto_load_files(files_url: str):
+def auto_load_files(files_url: str, osd_id: str):
     """
     Automatically fetch NASA OSDR dataset file list,
     download the main CSVs, and return them as DataFrames.
@@ -51,11 +69,11 @@ def auto_load_files(files_url: str):
         response.raise_for_status()
         data = response.json()
 
-        if "OSD-3" not in data:
-            st.error("Unexpected JSON structure from NASA OSDR API.")
+        if osd_id not in data:
+            st.error(f"Unexpected JSON structure from NASA OSDR API. Expected {osd_id} but not found.")
             return {}
 
-        file_entries = data["OSD-3"]["files"]
+        file_entries = data[osd_id]["files"]
 
         # Helper to find specific files
         def find_file(keyword):
@@ -77,7 +95,6 @@ def auto_load_files(files_url: str):
                 try:
                     df = pd.read_csv(url)
                     dfs[key] = df
-                    st.success(f"Loaded {key} data ✅")
                 except Exception as e:
                     st.warning(f"Could not load {key} data: {e}")
             else:
@@ -104,7 +121,8 @@ st.sidebar.markdown(f"[🔗 View Dataset Files]({experiment_info['visualizations
 # 🧩 STEP 4: Load Data Automatically
 # ---------------------------------------------------------
 files_url = experiment_info["visualizations"]["files_url"]
-dataframes = auto_load_files(files_url)
+osd_id = experiment_info["osd_id"]
+dataframes = auto_load_files(files_url, osd_id)
 
 diff_df = dataframes.get("differential")
 pca_df = dataframes.get("pca")

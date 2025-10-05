@@ -490,7 +490,7 @@ def analyze_publication():
         # Process publication
         result = agent_instance.process_publication(
             publication_title=publication_title,
-            nasa_data_path='restructured_nasa_data.json'
+            nasa_data_path='data/restructured_nasa_data.json'
         )
         
         # Check for errors in result
@@ -508,7 +508,7 @@ def analyze_publication():
     except FileNotFoundError:
         return jsonify({
             'error': 'Configuration error',
-            'message': 'restructured_nasa_data.json file not found'
+            'message': 'data/restructured_nasa_data.json file not found'
         }), 500
     
     except Exception as e:
@@ -541,7 +541,7 @@ def list_publications():
     }
     """
     try:
-        with open('restructured_nasa_data.json', 'r') as f:
+        with open('data/restructured_nasa_data.json', 'r') as f:
             nasa_data = json.load(f)
         
         publications = []
@@ -592,7 +592,7 @@ if __name__ == '__main__':
     """)
     
     # Check for required files
-    if not os.path.exists('restructured_nasa_data.json'):
+    if not os.path.exists('data/restructured_nasa_data.json'):
         print("⚠️  WARNING: restructured_nasa_data.json not found!")
     
     if not os.getenv('OPENAI_API_KEY'):
